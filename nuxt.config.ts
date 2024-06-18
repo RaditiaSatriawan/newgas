@@ -1,14 +1,17 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
+import { defineNuxtConfig } from 'nuxt/config';
+
 export default defineNuxtConfig({
   devtools: { enabled: true },
   routeRules: {
-    // prerender index route by default
     '/': { prerender: true },
   },
   css: [
     'bootstrap/dist/css/bootstrap.css',
     '@fortawesome/fontawesome-free/css/all.css',
-    '~/assets/css/todo.css' // Custom styles
+    '~/assets/css/todo.css',
+  ],
+  plugins: [
+    { src: '~/plugins/firebase', mode: 'client' },
   ],
   build: {
     postcss: {
@@ -17,10 +20,10 @@ export default defineNuxtConfig({
         'postcss-url': {},
         'postcss-preset-env': {
           features: {
-            customProperties: false
-          }
-        }
-      }
-    }
-  }
+            customProperties: false,
+          },
+        },
+      },
+    },
+  },
 });
