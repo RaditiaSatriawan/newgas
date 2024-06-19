@@ -12,7 +12,8 @@ const firebaseConfig = {
     storageBucket: "newgas-d9d01.appspot.com",
     messagingSenderId: "271282040066",
     appId: "1:271282040066:web:1782fdbad081cb930c261b",
-    measurementId: "G-GGGSPQEBQP"
+    measurementId: "G-GGGSPQEBQP",
+    databaseURL: "https://newgas-d9d01-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
 
 export default defineNuxtPlugin(nuxtApp => {
