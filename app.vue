@@ -1,6 +1,6 @@
 <template>
   <div>
-    <header>
+    <!--<header>
     <nav>
       <ul>
         <li><NuxtLink to="/">Home</NuxtLink></li>
@@ -8,7 +8,7 @@
         <li><NuxtLink to="/signup">Signup</NuxtLink></li>
       </ul>
     </nav>
-    </header>
+    </header>-->
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
