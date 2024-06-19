@@ -8,7 +8,6 @@ export default defineNuxtConfig({
   css: [
     'bootstrap/dist/css/bootstrap.css',
     '@fortawesome/fontawesome-free/css/all.css',
-    '~/assets/css/todo.css',
   ],
   plugins: [
     { src: '~/plugins/firebase', mode: 'client' },

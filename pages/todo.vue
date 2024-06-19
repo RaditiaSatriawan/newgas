@@ -1,193 +1,233 @@
 <template>
-  <div class="container d-flex flex-column justify-content-center align-items-center min-vh-100">
-    <header class="text-center text-light my-4">
-      <h1 class="mb-4">Todo List</h1>
-      <form class="search" @submit.prevent>
-        <input
-          v-model="search"
-          class="form-control m-auto rounded-pill"
-          type="text"
-          name="search"
-          placeholder="Search todos"
-        />
+  <div class="todo-container">
+    <div class="header">
+      <h1>My Schedule</h1>
+    </div>
+    <div class="form-container">
+      <form @submit.prevent="addCourse">
+        <div class="form-group">
+          <input v-model="courseName" type="text" placeholder="Course Name" required>
+        </div>
+        <div class="form-group">
+          <select v-model="courseTime" required>
+            <option value="" disabled>Select Time Slot</option>
+            <option value="A">7:30-8:20</option>
+            <option value="B">8:30-9:20</option>
+            <option value="C">9:30-10:20</option>
+            <option value="D">10:30-11:20</option>
+            <option value="E">11:30-12:20</option>
+            <option value="F">12:30-13:20</option>
+            <option value="G">13:30-14:20</option>
+            <option value="H">14:30-15:20</option>
+            <option value="I">15:30-16:20</option>
+            <option value="J">16:30-17:20</option>
+            <option value="K">17:30-18:20</option>
+            <option value="L">18:30-19:20</option>
+          </select>
+        </div>
+        <button type="submit">Add Course</button>
       </form>
-    </header>
-
-    <ul class="list-group todos mx-auto text-light">
-      <li
-        v-for="(todo, id) in filteredTodos"
-        :key="id"
-        class="list-group-item d-flex justify-content-between align-items-center rounded-pill mb-2"
-      >
-        <span>{{ todo.courseName }}</span>
-        <ul>
-          <li v-for="(time, index) in todo.courseTimes" :key="index">
-            {{ translateCourseTime(time) }}
-          </li>
-        </ul>
-        <i class="far fa-trash-alt delete" @click="deleteTodo(id)"></i>
-      </li>
-    </ul>
-
-    <form class="add text-center my-4" @submit.prevent="addTodo">
-      <label class="text-light mb-2">Add a new course...</label>
-      <input v-model="newCourseName" class="form-control m-auto rounded-pill" type="text" name="add" placeholder="Nama Mata Kuliah" />
-      <div v-for="(timeSlot, index) in newCourseTimeSlots" :key="index">
-        <input v-model="newCourseTimeSlots[index]" class="form-control m-auto rounded-pill" type="text" placeholder="Kode Jam (a-l)" />
-        <button @click="removeTimeSlot(index)">Hapus Slot</button>
-      </div>
-      <button @click="addTimeSlot">Tambah Slot Waktu</button>
-      <br />
-      <div class="text-center mt-2">
-        <input type="submit" class="btn btn-light rounded-pill" value="Add Course" />
-      </div>
-    </form>
+    </div>
+    <div class="schedule-list">
+      <h2>Weekly Schedule</h2>
+      <ul>
+        <li v-for="course in courses" :key="course.id">
+          {{ course.name }} - {{ getTimeSlot(course.time) }}
+          <button class="remove-btn" @click="removeCourse(course.id)">Remove</button>
+        </li>
+      </ul>
+    </div>
+    <div class="footer">
+      <button class="logout-btn" @click="logout">Logout</button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { getAuth } from 'firebase/auth';
-import { getDatabase, ref as dbRef, child, set, remove, onValue } from 'firebase/database';
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useNuxtApp } from '#app';
 
-const newCourseName = ref('');
-const newCourseTimeSlots = ref<string[]>(['']);
-const courses = ref<Record<string, any>>({});
-const search = ref('');
+const courseName = ref('');
+const courseTime = ref('');
+const courses = ref([]);
 
-const auth = getAuth();
-const database = getDatabase();
-const user = auth.currentUser;
+const { $firebase } = useNuxtApp();
+const router = useRouter();
 
-const loadCourses = () => {
-  if (user) {
-    const userCoursesRef = dbRef(database, `users/${user.uid}/courses`);
-    onValue(userCoursesRef, (snapshot) => {
-      courses.value = snapshot.val() || {};
+const userId = $firebase.auth.currentUser?.uid;
+
+const fetchCourses = async () => {
+  if (userId) {
+    const snapshot = await $firebase.database.ref('courses/' + userId).once('value');
+    if (snapshot.exists()) {
+      courses.value = Object.entries(snapshot.val()).map(([id, course]) => ({ id, ...course }));
+    }
+  }
+};
+
+const addCourse = async () => {
+  if (userId) {
+    const newCourseRef = $firebase.database.ref('courses/' + userId).push();
+    await newCourseRef.set({
+      name: courseName.value,
+      time: courseTime.value,
     });
+
+    courses.value.push({
+      id: newCourseRef.key,
+      name: courseName.value,
+      time: courseTime.value,
+    });
+
+    courseName.value = '';
+    courseTime.value = '';
   }
 };
 
-const addTodo = () => {
-  if (user && newCourseName.value && newCourseTimeSlots.value.length > 0) {
-    const translatedTimes = newCourseTimeSlots.value.map(time => translateCourseTime(time));
-    const invalidTime = translatedTimes.includes('Waktu tidak valid');
-    if (invalidTime) {
-      alert('Kode jam tidak valid. Gunakan kode dari a sampai l.');
-      return;
-    }
-
-    const userCoursesRef = dbRef(database, `users/${user.uid}/courses`);
-    const newCourseKey = child(userCoursesRef, 'new').key;
-    if (newCourseKey) {
-      const newCourseRef = child(userCoursesRef, newCourseKey);
-      set(newCourseRef, {
-        courseName: newCourseName.value,
-        courseTimes: newCourseTimeSlots.value
-      }).then(() => {
-        loadCourses(); // Load courses again to ensure new course is shown
-        newCourseName.value = '';
-        newCourseTimeSlots.value = [''];
-      });
-    }
+const removeCourse = async (courseId: string) => {
+  if (userId) {
+    await $firebase.database.ref('courses/' + userId + '/' + courseId).remove();
+    courses.value = courses.value.filter(course => course.id !== courseId);
   }
 };
 
-const addTimeSlot = () => {
-  newCourseTimeSlots.value.push('');
-};
-
-const removeTimeSlot = (index: number) => {
-  if (newCourseTimeSlots.value.length > 1) {
-    newCourseTimeSlots.value.splice(index, 1);
-  } else {
-    alert('Anda harus memiliki setidaknya satu slot waktu.');
-  }
-};
-
-const deleteTodo = (id: string) => {
-  if (user) {
-    const courseRef = dbRef(database, `users/${user.uid}/courses/${id}`);
-    remove(courseRef).then(loadCourses);
-  }
-};
-
-const translateCourseTime = (timeCode: string): string => {
-  const timeMap: Record<string, string> = {
-    'a': '07:30 - 08:20',
-    'b': '08:30 - 09:20',
-    'c': '09:30 - 10:20',
-    'd': '10:30 - 11:20',
-    'e': '11:30 - 12:20',
-    'f': '12:30 - 13:20',
-    'g': '13:30 - 14:20',
-    'h': '14:30 - 15:20',
-    'i': '15:30 - 16:20',
-    'j': '16:30 - 17:20',
-    'k': '17:30 - 18:20',
-    'l': '18:30 - 19:20'
+const getTimeSlot = (timeCode: string) => {
+  const timeSlots: { [key: string]: string } = {
+    A: '7:30-8:20',
+    B: '8:30-9:20',
+    C: '9:30-10:20',
+    D: '10:30-11:20',
+    E: '11:30-12:20',
+    F: '12:30-13:20',
+    G: '13:30-14:20',
+    H: '14:30-15:20',
+    I: '15:30-16:20',
+    J: '16:30-17:20',
+    K: '17:30-18:20',
+    L: '18:30-19:20',
   };
-  return timeMap[timeCode.toLowerCase()] || 'Waktu tidak valid';
+  return timeSlots[timeCode] || 'Unknown time';
 };
 
-const filteredTodos = computed(() => {
-  const term = search.value.toLowerCase();
-  return Object.entries(courses.value)
-    .map(([id, course]) => ({ id, ...course }))
-    .filter(course => course.courseName.toLowerCase().includes(term));
-});
+const logout = async () => {
+  await $firebase.auth.signOut();
+  router.push('/');
+};
 
-onMounted(loadCourses);
+onMounted(fetchCourses);
 </script>
 
 <style scoped>
-body {
-  background: #352f5b;
-  font-family: "Josefin Sans", sans-serif;
-  font-size: 23px;
+.todo-container {
+  padding: 20px;
+  background-color: #EFE4D2;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #352F5D;
 }
 
-.container {
+.header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+h1, h2 {
+  color: #352F5D;
+}
+
+.form-container {
+  margin: 20px auto;
+  width: 100%;
   max-width: 400px;
+  padding: 20px;
+  background: #352F5D;
+  color: #EFE4D2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
 }
 
-input[type="text"],
-input[type="text"]:focus {
-  color: #fff;
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  color: #352F5D;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  background-color: #2380BD;
+  color: #EFE4D2;
   border: none;
-  background: rgba(0, 0, 0, 0.2);
-  max-width: 400px;
-  padding: 10px 20px;
-}
-
-.todos li {
-  background: #423a6f;
-  color: #fff;
-  padding: 10px 20px;
-}
-
-.delete {
+  border-radius: 4px;
   cursor: pointer;
 }
 
-.filtered {
-  display: none !important;
+button:hover {
+  background-color: #1B6A99;
 }
 
-.btn:hover {
-  background: #423a6f;
-  color: #fff;
-  border-top-width: 1px;
-  border-bottom-width: 1px;
-  border-radius: 13px 13px;
-  transition: 0.3s;
+.schedule-list {
+  margin: 20px auto;
+  width: 100%;
+  max-width: 600px;
 }
 
-.btn {
+.schedule-list ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.schedule-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 50px;
+  background: #352F5D;
+  margin-bottom: 10px;
+  color: #EFE4D2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.schedule-list .remove-btn {
+  background-color: #dc3545;
+  color: #EFE4D2;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 5px 10px;
+  margin-left: 100px;
+}
+
+.schedule-list .remove-btn:hover {
+  background-color: #c82333;
+}
+
+.footer {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.logout-btn {
+  background-color: #2380BD;
+  color: #EFE4D2;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
   padding: 10px 20px;
+  width: 30%;
 }
 
-.add input[type="text"] {
-  padding: 10px 20px;
+.logout-btn:hover {
+  background-color: #1B6A99;
 }
 </style>

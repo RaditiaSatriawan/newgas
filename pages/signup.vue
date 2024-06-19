@@ -25,7 +25,7 @@
           </div>
           <button type="submit">Create an account</button>
         </form>
-        <p>I'm already a member! <NuxtLink to="/login">Sign In</NuxtLink></p>
+        <p>I'm already a member! <NuxtLink to="/login">Log In</NuxtLink></p>
         <p>Back to <NuxtLink to="/">Home</NuxtLink></p>
       </div>
     </div>
@@ -98,7 +98,7 @@ const validateField = (field: string) => !!field.trim();
 
 .form-container {
   display: flex;
-  background: #fff;
+  background: #EFE4D2;
   color: black;
   width: 100%;
   height: 100%;
@@ -106,7 +106,7 @@ const validateField = (field: string) => !!field.trim();
 }
 
 .left-panel {
-  background: black;
+  background: #32305F;
   color: white;
   padding: 40px;
   width: 40%;
@@ -118,7 +118,7 @@ const validateField = (field: string) => !!field.trim();
 }
 
 h1, h2 {
-  margin: 0;
+  margin-bottom: 30px;
 }
 
 .form-group {
@@ -134,7 +134,7 @@ h1, h2 {
 }
 
 button {
-  background-color: black;
+  background-color: #277BB7;
   color: white;
   padding: 10px 20px;
   border: none;
@@ -143,7 +143,7 @@ button {
 }
 
 button:hover {
-  background-color: #555;
+  background-color: #1b5177;
 }
 
 p {

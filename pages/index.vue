@@ -8,9 +8,6 @@
       </div>
       <div class="right-panel">
         <h1>NewGas!</h1>
-        <AppAlert>
-          Navigation:
-        </AppAlert>
         <div class="nav-links">
           <NuxtLink to="/login">Sign In</NuxtLink>
           <NuxtLink to="/signup">Sign Up</NuxtLink>
@@ -51,12 +48,13 @@ import AppAlert from '~/components/AppAlert.vue'; // Ensure you have this compon
 }
 
 .left-panel {
-  background: black;
+  background: #32305F;
   color: white;
+  text-align: center
 }
 
 .right-panel {
-  background: white;
+  background: #EFE4D2;
   color: black;
 }
 
@@ -72,7 +70,8 @@ h1, h2 {
 }
 
 .nav-links a {
-  color: black;
+  background-color: #277BB7;
+  color: white;
   text-decoration: none;
   padding: 10px 20px;
   margin: 5px 0;
@@ -81,6 +80,6 @@ h1, h2 {
 }
 
 .nav-links a:hover {
-  background-color: #f0f0f0;
+  background-color: #1b5177;
 }
 </style>

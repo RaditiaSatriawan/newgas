@@ -6,7 +6,7 @@
         <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."</p>
       </div>
       <div class="right-panel">
-        <h1>Sign In</h1>
+        <h1>Log In</h1>
         <form @submit.prevent="login">
           <div class="form-group">
             <input v-model="email" type="email" placeholder="Email" required>
@@ -74,7 +74,7 @@ const validatePassword = (password: string) => password.length >= 6;
 }
 
 .form-container {
-  background: #fff;
+  background: #EFE4D2;
   display: flex;
   width: 100%;
   height: 100%;
@@ -83,7 +83,7 @@ const validatePassword = (password: string) => password.length >= 6;
 }
 
 .left-panel {
-  background: black;
+  background: #32305F;
   color: white;
   padding: 40px;
   width: 40%;
@@ -95,7 +95,7 @@ const validatePassword = (password: string) => password.length >= 6;
 }
 
 h1, h2 {
-  margin: 0;
+  margin-bottom: 30px;
 }
 
 .form-group {
@@ -111,7 +111,7 @@ h1, h2 {
 }
 
 button {
-  background-color: black;
+  background-color: #277BB7;
   color: white;
   padding: 10px 20px;
   border: none;
@@ -120,7 +120,7 @@ button {
 }
 
 button:hover {
-  background-color: #555;
+  background-color: #1b5177;
 }
 
 p {
