@@ -28,6 +28,8 @@
   background-color: #0093E9;
   background-image: linear-gradient(160deg, #EFE4D2 0%, #32305F 100%);
   color: white;
+  padding: 20px; /* Added padding for smaller screens */
+  box-sizing: border-box; /* Ensures padding is included in width calculations */
 }
 
 .form-container {
@@ -62,6 +64,10 @@ h1, h2 {
   margin: 0 0 20px;
 }
 
+p {
+  margin: 0 0 15px; /* Added margin between paragraphs */
+}
+
 .nav-links {
   margin-top: 30px;
   display: flex;
@@ -81,5 +87,38 @@ h1, h2 {
 
 .nav-links a:hover {
   background-color: #1b5177;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .left-panel {
+    width: 80%;
+    padding: 20px;
+  }
+
+  .avatar img {
+    width: 100px;
+    height: 100px;
+  }
+
+  .nav-links a {
+    padding: 8px 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .left-panel {
+    width: 100%;
+    padding: 15px;
+  }
+
+  .avatar img {
+    width: 80px;
+    height: 80px;
+  }
+
+  .nav-links a {
+    padding: 6px 10px;
+  }
 }
 </style>
