@@ -2,12 +2,14 @@
   <div class="home-container">
     <div class="form-container">
       <div class="left-panel">
+        <div class="avatar">
+          <NuxtLink to="/">
+            <img src="./avatar.jpg" alt="User Avatar">
+          </NuxtLink>
+        </div>
         <h2>Welcome to NewGas</h2>
         <p>Newgas is an app designed to help students efficiently manage their course schedules and daily assignments.</p>
         <p>With Newgas, students can easily manage their class schedules and assignments, receive important notifications, and organise their daily activities through an integrated to-do list. The app is designed to increase productivity and help students stay organised in managing their time.</p>
-      </div>
-      <div class="right-panel">
-        <h1>NewGas!</h1>
         <div class="nav-links">
           <NuxtLink to="/login">Sign In</NuxtLink>
           <NuxtLink to="/signup">Sign Up</NuxtLink>
@@ -17,45 +19,43 @@
   </div>
 </template>
 
-<!--<script setup>
-import AppAlert from '~/components/AppAlert.vue'; // Ensure you have this component available
-</script>-->
-
 <style scoped>
 .home-container {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: #333;
+  background-color: #0093E9;
+  background-image: linear-gradient(160deg, #EFE4D2 0%, #32305F 100%);
   color: white;
 }
 
 .form-container {
   display: flex;
+  justify-content: center;
+  align-items: center;
   width: 100%;
   height: 100%;
 }
 
-.left-panel, .right-panel {
+.left-panel {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 40px;
   width: 50%;
-  height: 100%;
-}
-
-.left-panel {
-  background: #32305F;
+  background: rgba(50, 48, 95, 0.8); /* Semi-transparent for blending with the gradient */
   color: white;
-  text-align: center
+  text-align: center;
+  border-radius: 8px;
 }
 
-.right-panel {
-  background: #EFE4D2;
-  color: black;
+.avatar img {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  margin-bottom: 20px;
 }
 
 h1, h2 {
@@ -63,7 +63,7 @@ h1, h2 {
 }
 
 .nav-links {
-  margin-top: 15px;
+  margin-top: 30px;
   display: flex;
   flex-direction: column;
   align-items: center;
