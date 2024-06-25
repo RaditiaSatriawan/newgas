@@ -1,5 +1,3 @@
-// plugins/firebase.ts
-
 import { defineNuxtPlugin } from '#app';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
@@ -24,5 +22,17 @@ export default defineNuxtPlugin(nuxtApp => {
     const auth = firebase.auth();
     const database = firebase.database();
 
+    // Persist user authentication state in localStorage
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            localStorage.setItem('user', JSON.stringify(user));
+            nuxtApp.provide('user', user);
+        } else {
+            localStorage.removeItem('user');
+            nuxtApp.provide('user', null);
+        }
+    });
+
     nuxtApp.provide('firebase', { auth, database });
 });
+

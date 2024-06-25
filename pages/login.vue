@@ -24,10 +24,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNuxtApp } from '#app';
-  
+
 const email = ref('');
 const password = ref('');
 const router = useRouter();
@@ -39,7 +39,7 @@ const login = async () => {
       alert('Invalid email or password (min. 6 characters)');
       return;
     }
-  
+
     await $firebase.auth.signInWithEmailAndPassword(email.value, password.value);
     const user = $firebase.auth.currentUser;
 
@@ -47,6 +47,10 @@ const login = async () => {
       await $firebase.database.ref('users/' + user.uid).update({
         lastLogin: Date.now(),
       });
+
+      // Store user in localStorage to persist login
+      localStorage.setItem('user', JSON.stringify(user));
+
       router.push('/todo');
     }
   } catch (error: any) {
@@ -57,6 +61,17 @@ const login = async () => {
 
 const validateEmail = (email: string) => /^[^@]+@\w+(\.\w+)+\w$/.test(email);
 const validatePassword = (password: string) => password.length >= 6;
+
+// Check if user is already logged in (auto-login on page refresh)
+onMounted(() => {
+  const storedUser = localStorage.getItem('user');
+  if (storedUser) {
+    const user = JSON.parse(storedUser);
+    if (user && user.uid) {
+      router.push('/todo');
+    }
+  }
+});
 </script>
 
 <style scoped>

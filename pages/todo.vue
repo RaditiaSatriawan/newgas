@@ -4,9 +4,21 @@
       <h1>My Schedule</h1>
     </div>
     <div class="form-container">
-      <form @submit.prevent="addCourse">
+      <form @submit.prevent="addCourse" v-if="userId">
         <div class="form-group">
           <input v-model="courseName" type="text" placeholder="Course Name" required>
+        </div>
+        <div class="form-group">
+          <select v-model="courseDay" required>
+            <option value="" disabled>Select Day</option>
+            <option value="Monday">Monday</option>
+            <option value="Tuesday">Tuesday</option>
+            <option value="Wednesday">Wednesday</option>
+            <option value="Thursday">Thursday</option>
+            <option value="Friday">Friday</option>
+            <option value="Saturday">Saturday</option>
+            <option value="Sunday">Sunday</option>
+          </select>
         </div>
         <div class="form-group">
           <select v-model="courseTime" required>
@@ -27,71 +39,85 @@
         </div>
         <button type="submit">Add Course</button>
       </form>
+      <p v-else>Please wait while loading...</p>
     </div>
     <div class="schedule-list">
       <h2>Weekly Schedule</h2>
-      <ul>
+      <ul v-if="userId && courses.length > 0">
         <li v-for="course in courses" :key="course.id">
-          {{ course.name }} - {{ getTimeSlot(course.time) }}
+          <div class="course-info">
+            <span>{{ course.name }}</span> |
+            <span>{{ course.day }}</span> |
+            <span>{{ getTimeSlot(course.time) }}</span>
+          </div>
           <button class="remove-btn" @click="removeCourse(course.id)">Remove</button>
         </li>
       </ul>
+      <p v-else-if="userId && courses.length === 0">No courses added yet.</p>
+      <p v-else>Please log in to view your schedule.</p>
     </div>
     <div class="footer">
-      <button class="logout-btn" @click="logout">Logout</button>
+      <button class="logout-btn" @click="logout" v-if="userId">Logout</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNuxtApp } from '#app';
 
 const courseName = ref('');
 const courseTime = ref('');
+const courseDay = ref('');
 const courses = ref([]);
-
 const { $firebase } = useNuxtApp();
 const router = useRouter();
+const userId = ref(null);
+let intervalId: number | null = null;
 
-const userId = $firebase.auth.currentUser?.uid;
-
+// Function to fetch courses from Firebase
 const fetchCourses = async () => {
-  if (userId) {
-    const snapshot = await $firebase.database.ref('courses/' + userId).once('value');
+  if (userId.value) {
+    const snapshot = await $firebase.database.ref('courses/' + userId.value).once('value');
     if (snapshot.exists()) {
       courses.value = Object.entries(snapshot.val()).map(([id, course]) => ({ id, ...course }));
     }
   }
 };
 
+// Function to add a new course
 const addCourse = async () => {
-  if (userId) {
-    const newCourseRef = $firebase.database.ref('courses/' + userId).push();
+  if (userId.value) {
+    const newCourseRef = $firebase.database.ref('courses/' + userId.value).push();
     await newCourseRef.set({
       name: courseName.value,
+      day: courseDay.value,
       time: courseTime.value,
     });
 
     courses.value.push({
       id: newCourseRef.key,
       name: courseName.value,
+      day: courseDay.value,
       time: courseTime.value,
     });
 
     courseName.value = '';
+    courseDay.value = '';
     courseTime.value = '';
   }
 };
 
+// Function to remove a course
 const removeCourse = async (courseId: string) => {
-  if (userId) {
-    await $firebase.database.ref('courses/' + userId + '/' + courseId).remove();
+  if (userId.value) {
+    await $firebase.database.ref('courses/' + userId.value + '/' + courseId).remove();
     courses.value = courses.value.filter(course => course.id !== courseId);
   }
 };
 
+// Function to get human-readable time slot
 const getTimeSlot = (timeCode: string) => {
   const timeSlots: { [key: string]: string } = {
     A: '7:30-8:20',
@@ -110,12 +136,94 @@ const getTimeSlot = (timeCode: string) => {
   return timeSlots[timeCode] || 'Unknown time';
 };
 
+// Function to check and display notifications for passed courses
+const checkCourseNotifications = () => {
+  const currentDate = new Date();
+  const currentDay = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
+  const currentTime = `${currentDate.getHours()}:${currentDate.getMinutes()}`;
+
+  // Filter courses to include only passed courses (not upcoming)
+  const passedCourses = courses.value.filter(course => {
+    const [startTime] = getTimeSlot(course.time).split('-');
+    return course.day === currentDay && compareTimes(currentTime, startTime) >= 0;
+  });
+
+  // Notify passed courses
+  passedCourses.forEach(course => {
+    const notificationTitle = 'Course Notification';
+    const options = {
+      body: `Time for your ${course.name} course!`,
+    };
+
+    if (Notification.permission === 'granted') {
+      new Notification(notificationTitle, options);
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          new Notification(notificationTitle, options);
+        }
+      });
+    }
+  });
+};
+
+// Function to compare two time strings (HH:MM)
+const compareTimes = (time1: string, time2: string) => {
+  const [hours1, minutes1] = time1.split(':').map(Number);
+  const [hours2, minutes2] = time2.split(':').map(Number);
+
+  if (hours1 === hours2) {
+    return minutes1 - minutes2;
+  }
+
+  return hours1 - hours2;
+};
+
+// Function to handle user logout
 const logout = async () => {
   await $firebase.auth.signOut();
+  localStorage.removeItem('user'); // Clear user from localStorage on logout
   router.push('/');
 };
 
-onMounted(fetchCourses);
+// Lifecycle hook: Fetch courses on component mount
+onMounted(async () => {
+  if ($firebase.auth.currentUser) {
+    userId.value = $firebase.auth.currentUser.uid;
+    await fetchCourses();
+    startNotificationCheck();
+  } else {
+    router.push('/'); // Redirect to login if not authenticated
+  }
+});
+
+// Lifecycle hook: Clear interval on component unmount
+onUnmounted(() => {
+  if (intervalId !== null) {
+    clearInterval(intervalId);
+  }
+});
+
+// Watch for changes in authentication state
+watch($firebase.auth.currentUser, async (newUser) => {
+  if (newUser) {
+    userId.value = newUser.uid;
+    await fetchCourses();
+    startNotificationCheck();
+  } else {
+    userId.value = null;
+    courses.value = []; // Clear courses if not authenticated
+    router.push('/'); // Redirect to login if not authenticated
+  }
+});
+
+// Function to start the notification check interval
+const startNotificationCheck = () => {
+  if (intervalId !== null) {
+    clearInterval(intervalId);
+  }
+  intervalId = setInterval(checkCourseNotifications, 60000); // Check every minute
+};
 </script>
 
 <style scoped>
@@ -190,22 +298,29 @@ button:hover {
 .schedule-list li {
   display: flex;
   justify-content: space-between;
-  padding: 50px;
+  align-items: center;
+  padding: 15px;
   background: #352F5D;
   margin-bottom: 10px;
   color: #EFE4D2;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border-radius: 4px;
+  flex-wrap: wrap; /* Add this to allow items to wrap */
+}
+
+.course-info {
+  flex-grow: 1;
+  margin-right: 50px;
 }
 
 .schedule-list .remove-btn {
+  width: 30%;
   background-color: #dc3545;
   color: #EFE4D2;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  padding: 5px 10px;
-  margin-left: 100px;
+  padding: 10px;
 }
 
 .schedule-list .remove-btn:hover {
@@ -218,16 +333,34 @@ button:hover {
 }
 
 .logout-btn {
+  width: 30%;
   background-color: #2380BD;
   color: #EFE4D2;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   padding: 10px 20px;
-  width: 30%;
 }
 
 .logout-btn:hover {
   background-color: #1B6A99;
+}
+
+p {
+  text-align: center;
+  color: #352F5D;
+}
+
+/* Media query for mobile devices */
+@media (max-width: 600px) {
+  .course-info {
+    margin-right: 0; /* Reset margin */
+    width: 100%; /* Full width */
+    margin-bottom: 10px; /* Space between info and button */
+  }
+
+  .schedule-list .remove-btn {
+    width: 100%; /* Full width */
+  }
 }
 </style>
