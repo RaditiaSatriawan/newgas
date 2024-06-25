@@ -19,6 +19,15 @@
   </div>
 </template>
 
+<script setup>
+
+const pageTitle = ref('NewGas'); 
+
+onMounted(() => {
+  document.title = pageTitle.value; 
+});
+</script>
+
 <style scoped>
 .home-container {
   display: flex;
@@ -28,8 +37,8 @@
   background-color: #0093E9;
   background-image: linear-gradient(160deg, #EFE4D2 0%, #32305F 100%);
   color: white;
-  padding: 20px; /* Added padding for smaller screens */
-  box-sizing: border-box; /* Ensures padding is included in width calculations */
+  padding: 20px; 
+  box-sizing: border-box; 
 }
 
 .form-container {
@@ -47,7 +56,7 @@
   align-items: center;
   padding: 40px;
   width: 50%;
-  background: rgba(50, 48, 95, 0.8); /* Semi-transparent for blending with the gradient */
+  background: rgba(50, 48, 95, 0.8);
   color: white;
   text-align: center;
   border-radius: 8px;
@@ -65,7 +74,7 @@ h1, h2 {
 }
 
 p {
-  margin: 0 0 15px; /* Added margin between paragraphs */
+  margin: 0 0 15px;
 }
 
 .nav-links {
