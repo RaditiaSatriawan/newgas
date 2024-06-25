@@ -75,6 +75,7 @@ const { $firebase } = useNuxtApp();
 const router = useRouter();
 const userId = ref(null);
 let intervalId: number | null = null;
+let initialNotificationFired = false;
 
 // Function to fetch courses from Firebase
 const fetchCourses = async () => {
@@ -82,6 +83,10 @@ const fetchCourses = async () => {
     const snapshot = await $firebase.database.ref('courses/' + userId.value).once('value');
     if (snapshot.exists()) {
       courses.value = Object.entries(snapshot.val()).map(([id, course]) => ({ id, ...course }));
+      if (!initialNotificationFired) {
+        checkCourseNotifications();
+        initialNotificationFired = true;
+      }
     }
   }
 };
@@ -136,34 +141,36 @@ const getTimeSlot = (timeCode: string) => {
   return timeSlots[timeCode] || 'Unknown time';
 };
 
-// Function to check and display notifications for passed courses
+// Function to check and display notifications for passed courses and upcoming courses
 const checkCourseNotifications = () => {
   const currentDate = new Date();
   const currentDay = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
   const currentTime = `${currentDate.getHours()}:${currentDate.getMinutes()}`;
 
-  // Filter courses to include only passed courses (not upcoming)
-  const passedCourses = courses.value.filter(course => {
+  // Notify passed courses only once
+  if (!initialNotificationFired) {
+    const passedCourses = courses.value.filter(course => {
+      const [startTime] = getTimeSlot(course.time).split('-');
+      return course.day === currentDay && compareTimes(currentTime, startTime) >= 0;
+    });
+
+    passedCourses.forEach(course => {
+      notifyDesktop(`Your time for ${course.name} course is passed. Congratulations!`);
+    });
+
+    initialNotificationFired = true;
+  }
+
+  // Notify upcoming courses at their scheduled times
+  const upcomingCourses = courses.value.filter(course => {
     const [startTime] = getTimeSlot(course.time).split('-');
-    return course.day === currentDay && compareTimes(currentTime, startTime) >= 0;
+    return course.day === currentDay && compareTimes(currentTime, startTime) < 0;
   });
 
-  // Notify passed courses
-  passedCourses.forEach(course => {
-    const notificationTitle = 'Course Notification';
-    const options = {
-      body: `Time for your ${course.name} course!`,
-    };
-
-    if (Notification.permission === 'granted') {
-      new Notification(notificationTitle, options);
-    } else if (Notification.permission !== 'denied') {
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          new Notification(notificationTitle, options);
-        }
-      });
-    }
+  upcomingCourses.forEach(course => {
+    const [startTime] = getTimeSlot(course.time).split('-');
+    const [hours, minutes] = startTime.split(':');
+    scheduleNotification(hours, minutes, `Time For Your Course: ${course.name}`);
   });
 };
 
@@ -179,11 +186,43 @@ const compareTimes = (time1: string, time2: string) => {
   return hours1 - hours2;
 };
 
+// Function to schedule notification at a specific time
+const scheduleNotification = (hours: string, minutes: string, message: string) => {
+  const now = new Date();
+  const notificationTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Number(hours), Number(minutes));
+
+  if (notificationTime > now) {
+    const timeout = notificationTime.getTime() - now.getTime();
+    setTimeout(() => {
+      notifyDesktop(message);
+    }, timeout);
+  }
+};
+
+// Function to notify on desktop (not mobile)
+const notifyDesktop = (message: string) => {
+  if (window.Notification && Notification.permission === 'granted') {
+    new Notification('Course Notification', { body: message });
+  } else if (window.Notification && Notification.permission !== 'denied') {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        new Notification('Course Notification', { body: message });
+      }
+    });
+  }
+};
+
 // Function to handle user logout
 const logout = async () => {
-  await $firebase.auth.signOut();
-  localStorage.removeItem('user'); // Clear user from localStorage on logout
-  router.push('/');
+  try {
+    await $firebase.auth.signOut();
+    localStorage.removeItem('user'); // Clear user from localStorage on logout
+    userId.value = null; // Clear userId locally
+    courses.value = []; // Clear courses locally
+    router.push('/'); // Redirect to login
+  } catch (error) {
+    console.error('Logout error:', error);
+  }
 };
 
 // Lifecycle hook: Fetch courses on component mount
@@ -191,7 +230,6 @@ onMounted(async () => {
   if ($firebase.auth.currentUser) {
     userId.value = $firebase.auth.currentUser.uid;
     await fetchCourses();
-    startNotificationCheck();
   } else {
     router.push('/'); // Redirect to login if not authenticated
   }
@@ -209,22 +247,15 @@ watch($firebase.auth.currentUser, async (newUser) => {
   if (newUser) {
     userId.value = newUser.uid;
     await fetchCourses();
-    startNotificationCheck();
   } else {
     userId.value = null;
     courses.value = []; // Clear courses if not authenticated
     router.push('/'); // Redirect to login if not authenticated
   }
 });
-
-// Function to start the notification check interval
-const startNotificationCheck = () => {
-  if (intervalId !== null) {
-    clearInterval(intervalId);
-  }
-  intervalId = setInterval(checkCourseNotifications, 60000); // Check every minute
-};
 </script>
+
+
 
 <style scoped>
 .todo-container {
