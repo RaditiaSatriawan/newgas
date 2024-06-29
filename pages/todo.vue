@@ -1,6 +1,7 @@
 <template>
   <div class="todo-container">
     <div class="header">
+      <p class="greeting">{{ greetingMessage }}</p>
       <h1>My Schedule</h1>
     </div>
     <div class="form-container">
@@ -67,22 +68,49 @@ import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNuxtApp } from '#app';
 
+// Define types for Course and User
+interface Course {
+  id: string | null;
+  name: string;
+  day: string;
+  time: string;
+}
+
+interface User {
+  uid: string;
+  fullName: string;
+}
+
 const courseName = ref('');
 const courseTime = ref('');
 const courseDay = ref('');
-const courses = ref([]);
+const courses = ref<Course[]>([]);
 const { $firebase } = useNuxtApp();
 const router = useRouter();
-const userId = ref(null);
+const userId = ref<string | null>(null);
+const fullName = ref('');
+const greetingMessage = ref('');
 let intervalId: number | null = null;
 let initialNotificationFired = false;
+
+// Function to fetch user data from Firebase
+const fetchUserData = async () => {
+  if (userId.value) {
+    const snapshot = await $firebase.database.ref('users/' + userId.value).once('value');
+    if (snapshot.exists()) {
+      const userData = snapshot.val() as User;
+      fullName.value = userData.fullName;
+      updateGreetingMessage();
+    }
+  }
+};
 
 // Function to fetch courses from Firebase
 const fetchCourses = async () => {
   if (userId.value) {
     const snapshot = await $firebase.database.ref('courses/' + userId.value).once('value');
     if (snapshot.exists()) {
-      courses.value = Object.entries(snapshot.val()).map(([id, course]) => ({ id, ...course }));
+      courses.value = Object.entries(snapshot.val()).map(([id, course]) => ({ id, ...(course as Omit<Course, 'id'>) }));
       if (!initialNotificationFired) {
         checkCourseNotifications();
         initialNotificationFired = true;
@@ -95,18 +123,15 @@ const fetchCourses = async () => {
 const addCourse = async () => {
   if (userId.value) {
     const newCourseRef = $firebase.database.ref('courses/' + userId.value).push();
-    await newCourseRef.set({
-      name: courseName.value,
-      day: courseDay.value,
-      time: courseTime.value,
-    });
-
-    courses.value.push({
+    const newCourse: Course = {
       id: newCourseRef.key,
       name: courseName.value,
       day: courseDay.value,
       time: courseTime.value,
-    });
+    };
+    await newCourseRef.set(newCourse);
+
+    courses.value.push(newCourse);
 
     courseName.value = '';
     courseDay.value = '';
@@ -212,12 +237,12 @@ const notifyDesktop = (message: string) => {
   }
 };
 
-// Function to handle user logout
+// Function to log out the user
 const logout = async () => {
   try {
     await $firebase.auth.signOut();
-    localStorage.removeItem('user'); // Clear user from localStorage on logout
     userId.value = null; // Clear userId locally
+    fullName.value = ''; // Clear fullName locally
     courses.value = []; // Clear courses locally
     router.push('/'); // Redirect to login
   } catch (error) {
@@ -225,10 +250,23 @@ const logout = async () => {
   }
 };
 
-// Lifecycle hook: Fetch courses on component mount
+// Function to update the greeting message based on the time of day
+const updateGreetingMessage = () => {
+  const currentHour = new Date().getHours();
+  if (currentHour < 12) {
+    greetingMessage.value = `Good Morning, ${fullName.value}`;
+  } else if (currentHour < 18) {
+    greetingMessage.value = `Good Afternoon, ${fullName.value}`;
+  } else {
+    greetingMessage.value = `Good Evening, ${fullName.value}`;
+  }
+};
+
+// Lifecycle hook: Fetch user data and courses on component mount
 onMounted(async () => {
   if ($firebase.auth.currentUser) {
     userId.value = $firebase.auth.currentUser.uid;
+    await fetchUserData();
     await fetchCourses();
   } else {
     router.push('/'); // Redirect to login if not authenticated
@@ -243,19 +281,21 @@ onUnmounted(() => {
 });
 
 // Watch for changes in authentication state
-watch($firebase.auth.currentUser, async (newUser) => {
-  if (newUser) {
-    userId.value = newUser.uid;
-    await fetchCourses();
-  } else {
-    userId.value = null;
-    courses.value = []; // Clear courses if not authenticated
-    router.push('/'); // Redirect to login if not authenticated
+watch(
+  () => $firebase.auth.currentUser,
+  async (newUser) => {
+    if (newUser) {
+      userId.value = newUser.uid;
+      await fetchUserData();
+      await fetchCourses();
+    } else {
+      userId.value = null;
+      courses.value = []; // Clear courses if not authenticated
+      router.push('/'); // Redirect to login if not authenticated
+    }
   }
-});
+);
 </script>
-
-
 
 <style scoped>
 .todo-container {
@@ -273,8 +313,17 @@ watch($firebase.auth.currentUser, async (newUser) => {
   margin-bottom: 20px;
 }
 
+.greeting {
+  text-align: center;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  color: #352F5D;
+  text-transform: uppercase;
+}
+
 h1, h2 {
   color: #352F5D;
+  text-align: center;
 }
 
 .form-container {
@@ -322,6 +371,7 @@ button:hover {
 }
 
 .schedule-list ul {
+  margin-top: 50px;
   list-style-type: none;
   padding: 0;
 }

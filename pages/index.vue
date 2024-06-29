@@ -4,7 +4,7 @@
       <div class="left-panel">
         <div class="avatar">
           <NuxtLink to="/">
-            <img src="./avatar.jpg" alt="User Avatar">
+            <img src="./avatar.png" alt="User Avatar">
           </NuxtLink>
         </div>
         <h2>Welcome to NewGas</h2>
@@ -18,6 +18,15 @@
     </div>
   </div>
 </template>
+
+<script setup>
+
+const pageTitle = ref('NewGas'); 
+
+onMounted(() => {
+  document.title = pageTitle.value; 
+});
+</script>
 
 <style scoped>
 .home-container {

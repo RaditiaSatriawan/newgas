@@ -4,7 +4,7 @@
       <div class="form-content">
         <div class="avatar">
           <NuxtLink to="/" class="avatar">
-            <img src="./avatar.jpg" alt="User Avatar">
+            <img src="./avatar.png" alt="User Avatar">
           </NuxtLink>
         </div>
         <h2>Welcome back!</h2>
