@@ -8,9 +8,11 @@ export default defineNuxtConfig({
   css: [
     'bootstrap/dist/css/bootstrap.css',
     '@fortawesome/fontawesome-free/css/all.css',
+    // Add other CSS files as needed
   ],
   plugins: [
     { src: '~/plugins/firebase', mode: 'client' },
+    // Ensure your Firebase plugin is correctly referenced
   ],
   build: {
     postcss: {
@@ -23,6 +25,23 @@ export default defineNuxtConfig({
           },
         },
       },
+    },
+  },
+  pwa: {
+    meta: {
+      theme_color: '#ffffff', // Customize your PWA theme color
+    },
+    manifest: {
+      name: 'NewGas',
+      short_name: 'NewGas',
+      description: 'NewGas',
+      lang: 'en',
+    },
+    workbox: {
+      importScripts: [
+        '/service-worker.js' // Path to your service worker file in the static directory
+      ],
+      // Other workbox configuration options if needed
     },
   },
 });

@@ -274,12 +274,12 @@ onMounted(async () => {
 
   // Register service worker for notifications
   if ('serviceWorker' in navigator) {
-    try {
-      await navigator.serviceWorker.register('/service-worker.js');
-      console.log('Service Worker Registered');
-    } catch (error) {
-      console.error('Service Worker Registration Failed', error);
-    }
+  navigator.serviceWorker.register('public/service-worker.js')
+    .then(function(registration) {
+      console.log('Service Worker registered with scope:', registration.scope);
+    }).catch(function(error) {
+      console.log('Service Worker registration failed:', error);
+    });
   }
 });
 
