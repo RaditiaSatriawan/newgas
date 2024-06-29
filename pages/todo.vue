@@ -271,6 +271,16 @@ onMounted(async () => {
   } else {
     router.push('/'); // Redirect to login if not authenticated
   }
+
+  // Register service worker for notifications
+  if ('serviceWorker' in navigator) {
+    try {
+      await navigator.serviceWorker.register('/service-worker.js');
+      console.log('Service Worker Registered');
+    } catch (error) {
+      console.error('Service Worker Registration Failed', error);
+    }
+  }
 });
 
 // Lifecycle hook: Clear interval on component unmount
