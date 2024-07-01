@@ -7,7 +7,7 @@
     <div class="form-container">
       <form @submit.prevent="addCourse" v-if="userId">
         <div class="form-group">
-          <input v-model="courseName" type="text" placeholder="Course Name" required>
+          <input v-model="courseName" type="text" placeholder="Course Name" required />
         </div>
         <div class="form-group">
           <select v-model="courseDay" required>
@@ -45,13 +45,12 @@
     <div class="schedule-list">
       <h2>Weekly Schedule</h2>
       <ul v-if="userId && courses.length > 0">
-        <li v-for="course in courses" :key="course.id">
+        <li v-for="course in courses" :key="course.id" @click="openModal(course)">
           <div class="course-info">
             <span>{{ course.name }}</span> |
             <span>{{ course.day }}</span> |
             <span>{{ getTimeSlot(course.time) }}</span>
           </div>
-          <button class="remove-btn" @click="removeCourse(course.id)">Remove</button>
         </li>
       </ul>
       <p v-else-if="userId && courses.length === 0">No courses added yet.</p>
@@ -60,20 +59,51 @@
     <div class="footer">
       <button class="logout-btn" @click="logout" v-if="userId">Logout</button>
     </div>
+
+    <!-- Course Details Modal -->
+    <div v-if="selectedCourse" class="modal-overlay" @click="closeModal">
+      <div class="modal-content" @click.stop>
+        <h2>{{ selectedCourse.name }} Details</h2>
+        <p><strong>Day:</strong> {{ selectedCourse.day }}</p>
+        <p><strong>Time:</strong> {{ getTimeSlot(selectedCourse.time) }}</p>
+
+        <div class="form-group">
+          <input v-model="assignmentName" type="text" placeholder="Assignment Name" required />
+        </div>
+        <button @click="addAssignment">Add Assignment</button>
+
+        <h3>Assignments</h3>
+        <ul>
+          <li v-for="assignment in selectedCourse.assignments" :key="assignment.id">
+            {{ assignment.name }}
+            <button class="remove-btn" @click="removeAssignment(assignment.id)">Remove</button>
+          </li>
+        </ul>
+
+        <button @click="removeCourse(selectedCourse.id)" class="remove-course-btn">Remove Course</button>
+        <button @click="closeModal" class="close-modal-btn">Close</button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNuxtApp } from '#app';
 
-// Define types for Course and User
+// Define types for Course, Assignment, and User
 interface Course {
-  id: string | null;
+  id: string;
   name: string;
   day: string;
   time: string;
+  assignments: Assignment[]; // Ensure assignments is always an array
+}
+
+interface Assignment {
+  id: string;
+  name: string;
 }
 
 interface User {
@@ -81,17 +111,20 @@ interface User {
   fullName: string;
 }
 
+// Define reactive refs and variables
 const courseName = ref('');
 const courseTime = ref('');
 const courseDay = ref('');
 const courses = ref<Course[]>([]);
+const selectedCourse = ref<Course | null>(null);
+const assignmentName = ref('');
 const { $firebase } = useNuxtApp();
 const router = useRouter();
 const userId = ref<string | null>(null);
 const fullName = ref('');
 const greetingMessage = ref('');
-let intervalId: number | null = null;
 let initialNotificationFired = false;
+let intervalId: NodeJS.Timeout | null = null;
 
 // Function to fetch user data from Firebase
 const fetchUserData = async () => {
@@ -110,7 +143,11 @@ const fetchCourses = async () => {
   if (userId.value) {
     const snapshot = await $firebase.database.ref('courses/' + userId.value).once('value');
     if (snapshot.exists()) {
-      courses.value = Object.entries(snapshot.val()).map(([id, course]) => ({ id, ...(course as Omit<Course, 'id'>) }));
+      courses.value = Object.entries(snapshot.val()).map(([id, course]) => ({
+        id,
+        ...(course as Omit<Course, 'id'>),
+        assignments: (course.assignments || []) as Assignment[],
+      }));
       if (!initialNotificationFired) {
         checkCourseNotifications();
         initialNotificationFired = true;
@@ -124,10 +161,11 @@ const addCourse = async () => {
   if (userId.value) {
     const newCourseRef = $firebase.database.ref('courses/' + userId.value).push();
     const newCourse: Course = {
-      id: newCourseRef.key,
+      id: newCourseRef.key!,
       name: courseName.value,
       day: courseDay.value,
       time: courseTime.value,
+      assignments: [],
     };
     await newCourseRef.set(newCourse);
 
@@ -144,6 +182,50 @@ const removeCourse = async (courseId: string) => {
   if (userId.value) {
     await $firebase.database.ref('courses/' + userId.value + '/' + courseId).remove();
     courses.value = courses.value.filter(course => course.id !== courseId);
+    closeModal();
+  }
+};
+
+// Function to add an assignment
+const addAssignment = async () => {
+  if (selectedCourse.value && userId.value) {
+    const newAssignmentRef = $firebase.database.ref(`courses/${userId.value}/${selectedCourse.value.id}/assignments`).push();
+    const newAssignment: Assignment = {
+      id: newAssignmentRef.key!,
+      name: assignmentName.value,
+    };
+
+    try {
+      await newAssignmentRef.set(newAssignment);
+
+      // Fetch the updated course with assignments
+      const courseRef = $firebase.database.ref(`courses/${userId.value}/${selectedCourse.value.id}`);
+      const courseSnapshot = await courseRef.once('value');
+
+      if (courseSnapshot.exists()) {
+        // Update assignments locally without fetching all courses again
+        selectedCourse.value.assignments = Object.values(courseSnapshot.val().assignments || {});
+        assignmentName.value = '';
+      }
+    } catch (error) {
+      console.error('Error adding assignment:', error);
+    }
+  }
+};
+
+// Function to remove an assignment
+const removeAssignment = async (assignmentId: string) => {
+  if (selectedCourse.value && userId.value) {
+    await $firebase.database.ref(`courses/${userId.value}/${selectedCourse.value.id}/assignments/${assignmentId}`).remove();
+
+    // Fetch the updated course with assignments
+    const courseRef = $firebase.database.ref(`courses/${userId.value}/${selectedCourse.value.id}`);
+    const courseSnapshot = await courseRef.once('value');
+
+    if (courseSnapshot.exists()) {
+      // Update assignments locally without fetching all courses again
+      selectedCourse.value.assignments = Object.values(courseSnapshot.val().assignments || {});
+    }
   }
 };
 
@@ -163,7 +245,39 @@ const getTimeSlot = (timeCode: string) => {
     K: '17:30-18:20',
     L: '18:30-19:20',
   };
-  return timeSlots[timeCode] || 'Unknown time';
+  return timeSlots[timeCode] || 'Unknown Time';
+};
+
+// Function to select a course and open modal
+const openModal = (course: Course) => {
+  selectedCourse.value = course;
+};
+
+// Function to close the modal
+const closeModal = () => {
+  selectedCourse.value = null;
+  assignmentName.value = '';
+};
+
+// Function to update the greeting message based on the time of day
+const updateGreetingMessage = () => {
+  const now = new Date();
+  const hour = now.getHours();
+  if (hour < 12) {
+    greetingMessage.value = `Good morning, ${fullName.value}!`;
+  } else if (hour < 18) {
+    greetingMessage.value = `Good afternoon, ${fullName.value}!`;
+  } else {
+    greetingMessage.value = `Good evening, ${fullName.value}!`;
+  }
+};
+
+// Function to log out the user
+const logout = async () => {
+  await $firebase.auth.signOut();
+  userId.value = null;
+  fullName.value = '';
+  router.push('/login');
 };
 
 // Function to check and display notifications for passed courses and upcoming courses
@@ -237,75 +351,36 @@ const notifyDesktop = (message: string) => {
   }
 };
 
-// Function to log out the user
-const logout = async () => {
-  try {
-    await $firebase.auth.signOut();
-    userId.value = null; // Clear userId locally
-    fullName.value = ''; // Clear fullName locally
-    courses.value = []; // Clear courses locally
-    router.push('/'); // Redirect to login
-  } catch (error) {
-    console.error('Logout error:', error);
-  }
-};
-
-// Function to update the greeting message based on the time of day
-const updateGreetingMessage = () => {
-  const currentHour = new Date().getHours();
-  if (currentHour < 12) {
-    greetingMessage.value = `Good Morning, ${fullName.value}`;
-  } else if (currentHour < 18) {
-    greetingMessage.value = `Good Afternoon, ${fullName.value}`;
-  } else {
-    greetingMessage.value = `Good Evening, ${fullName.value}`;
-  }
-};
-
-// Lifecycle hook: Fetch user data and courses on component mount
-onMounted(async () => {
-  if ($firebase.auth.currentUser) {
-    userId.value = $firebase.auth.currentUser.uid;
-    await fetchUserData();
-    await fetchCourses();
-  } else {
-    router.push('/'); // Redirect to login if not authenticated
-  }
-
-  // Register service worker for notifications
-  if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('public/service-worker.js')
-    .then(function(registration) {
-      console.log('Service Worker registered with scope:', registration.scope);
-    }).catch(function(error) {
-      console.log('Service Worker registration failed:', error);
-    });
-  }
-});
-
-// Lifecycle hook: Clear interval on component unmount
-onUnmounted(() => {
-  if (intervalId !== null) {
-    clearInterval(intervalId);
-  }
-});
-
-// Watch for changes in authentication state
-watch(
-  () => $firebase.auth.currentUser,
-  async (newUser) => {
-    if (newUser) {
-      userId.value = newUser.uid;
-      await fetchUserData();
-      await fetchCourses();
+// Lifecycle hooks
+onMounted(() => {
+  const unsubscribe = $firebase.auth.onAuthStateChanged(user => {
+    if (user) {
+      userId.value = user.uid;
+      fetchUserData();
+      fetchCourses();
     } else {
-      userId.value = null;
-      courses.value = []; // Clear courses if not authenticated
-      router.push('/'); // Redirect to login if not authenticated
+      router.push('/login');
     }
+  });
+  return unsubscribe;
+});
+
+onUnmounted(() => {
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
   }
-);
+});
+
+// Watch for changes in userId
+watch(userId, () => {
+  if (userId.value) {
+    fetchUserData();
+    fetchCourses();
+  }
+});
 </script>
+
 
 <style scoped>
 .todo-container {
@@ -331,7 +406,8 @@ watch(
   text-transform: uppercase;
 }
 
-h1, h2 {
+h1,
+h2 {
   color: #352F5D;
   text-align: center;
 }
@@ -351,7 +427,8 @@ h1, h2 {
   margin-bottom: 15px;
 }
 
-.form-group input, .form-group select {
+.form-group input,
+.form-group select {
   width: 100%;
   padding: 10px;
   box-sizing: border-box;
@@ -396,7 +473,8 @@ button:hover {
   color: #EFE4D2;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border-radius: 4px;
-  flex-wrap: wrap; /* Add this to allow items to wrap */
+  flex-wrap: wrap;
+  /* Add this to allow items to wrap */
 }
 
 .course-info {
@@ -407,6 +485,7 @@ button:hover {
 .schedule-list .remove-btn {
   width: 30%;
   background-color: #dc3545;
+  /* Red color for remove buttons */
   color: #EFE4D2;
   border: none;
   border-radius: 4px;
@@ -442,16 +521,91 @@ p {
   color: #352F5D;
 }
 
-/* Media query for mobile devices */
-@media (max-width: 600px) {
-  .course-info {
-    margin-right: 0; /* Reset margin */
-    width: 100%; /* Full width */
-    margin-bottom: 10px; /* Space between info and button */
-  }
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  /* Ensure modal is on top */
+}
 
-  .schedule-list .remove-btn {
-    width: 100%; /* Full width */
+.modal-content {
+  background-color: #EFE4D2;
+  padding: 20px;
+  width: 50%;
+  /* Set modal width for desktop */
+  max-width: 80%;
+  /* Limit maximum width */
+  max-height: 80%;
+  overflow-y: auto;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  color: #352F5D;
+}
+
+.modal-content h2 {
+  margin-bottom: 10px;
+}
+
+.modal-content p {
+  margin-bottom: 5px;
+}
+
+.modal-content ul {
+  padding-left: 20px;
+}
+
+.modal-content button {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background-color: #2380BD;
+  color: #EFE4D2;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.modal-content button:hover {
+  background-color: #1B6A99;
+}
+
+.modal-content .remove-course-btn {
+  background-color: #dc3545;
+  /* Red color for remove buttons */
+  color: #EFE4D2;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 10px;
+  width: 100%;
+  /* Full width for mobile */
+}
+
+.modal-content .remove-course-btn:hover {
+  background-color: #c82333;
+}
+
+.modal-content .close-modal-btn {
+  background-color: #2380BD;
+}
+
+.modal-content .close-modal-btn:hover {
+  background-color: #1B6A99;
+}
+
+@media (max-width: 600px) {
+  .modal-content {
+    width: 90%;
+    /* Adjust modal width for mobile */
+    max-width: 100%;
+    /* Ensure modal fits within screen */
   }
 }
 </style>

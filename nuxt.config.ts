@@ -44,4 +44,7 @@ export default defineNuxtConfig({
       // Other workbox configuration options if needed
     },
   },
+  router: {
+    base: '~/pages/todo', // Replace with your actual base path if applicable
+  }
 });
