@@ -553,6 +553,19 @@ p {
   margin-bottom: 10px;
 }
 
+.modal-content h3 {
+  margin-top: 20px;
+  margin-bottom: 15px;
+}
+
+.modal-content .remove-btn {
+  background-color: #dc3545;
+}
+
+.modal-content .remove-btn:hover {
+  background-color: #c82333;
+}
+
 .modal-content p {
   margin-bottom: 5px;
 }
