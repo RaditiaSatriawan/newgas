@@ -35,21 +35,36 @@ export default defineNuxtPlugin(nuxtApp => {
         }
     });
 
-    messaging.onMessage((payload) => {
-        console.log('Message received:', payload);
-        // Customize notification handling here
-    });
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/firebase-messaging-sw.js')
+            .then((registration) => {
+                console.log('Service Worker registered with scope:', registration.scope);
+                // Get FCM token
+                messaging.getToken({
+                    vapidKey: 'BOib9jHiMlKoH303LWfAqnDflrl3Lrxm3Hxml1GOVUq1cJqw3GjbMm8Gm4EKs1EtXqoyQKo3E_MaEImfrV09U2s',
+                    serviceWorkerRegistration: registration
+                })
+                    .then((currentToken) => {
+                        if (currentToken) {
+                            console.log('FCM Token:', currentToken);
+                            // Send the token to your server if needed
+                        } else {
+                            console.log('No registration token available.');
+                        }
+                    })
+                    .catch((err) => {
+                        console.log('An error occurred while retrieving token. ', err);
+                    });
 
-    messaging.getToken({ vapidKey: 'BOib9jHiMlKoH303LWfAqnDflrl3Lrxm3Hxml1GOVUq1cJqw3GjbMm8Gm4EKs1EtXqoyQKo3E_MaEImfrV09U2s' }).then((currentToken) => {
-        if (currentToken) {
-            console.log('FCM Token:', currentToken);
-            // Send the token to your server if needed
-        } else {
-            console.log('No registration token available.');
-        }
-    }).catch((err) => {
-        console.log('An error occurred while retrieving token. ', err);
-    });
+                messaging.onMessage((payload) => {
+                    console.log('Message received:', payload);
+                    // Customize notification handling here
+                });
+            })
+            .catch((err) => {
+                console.log('Service Worker registration failed: ', err);
+            });
+    }
 
     nuxtApp.provide('firebase', { auth, database, messaging });
 });

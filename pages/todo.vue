@@ -403,7 +403,6 @@ const sendNotification = (message: string) => {
     navigator.serviceWorker.ready.then((registration) => {
       registration.showNotification('Course Notification', {
         body: message,
-        icon: '~/assets/flower.png',
         vibrate: [200, 100, 200], 
         tag: 'vibration-sample',
       });
