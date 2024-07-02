@@ -40,7 +40,7 @@ export default defineNuxtPlugin(nuxtApp => {
         // Customize notification handling here
     });
 
-    messaging.getToken({ vapidKey: 'your-vapid-key' }).then((currentToken) => {
+    messaging.getToken({ vapidKey: 'BOib9jHiMlKoH303LWfAqnDflrl3Lrxm3Hxml1GOVUq1cJqw3GjbMm8Gm4EKs1EtXqoyQKo3E_MaEImfrV09U2s' }).then((currentToken) => {
         if (currentToken) {
             console.log('FCM Token:', currentToken);
             // Send the token to your server if needed
