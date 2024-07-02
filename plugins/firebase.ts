@@ -51,5 +51,5 @@ export default defineNuxtPlugin(nuxtApp => {
         console.log('An error occurred while retrieving token. ', err);
     });
 
-    nuxtApp.provide('firebase', { auth, database });
+    nuxtApp.provide('firebase', { auth, database, messaging });
 });

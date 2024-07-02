@@ -16,22 +16,13 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-self.addEventListener('push', event => {
-    const data = event.data.json();
-    const title = data.title || 'Course Notification';
-    const options = {
-        body: data.body || 'You have a new course notification.',
+messaging.onBackgroundMessage((payload) => {
+    console.log('[firebase-messaging-sw.js] Received background message ', payload);
+    // Customize notification here
+    const notificationTitle = payload.notification.title;
+    const notificationOptions = {
+        body: payload.notification.body,
     };
 
-    event.waitUntil(
-        self.registration.showNotification(title, options)
-    );
-});
-
-self.addEventListener('notificationclick', event => {
-    event.notification.close();
-
-    event.waitUntil(
-        clients.openWindow('https://newgas.vercel.app/todo')
-    );
+    self.registration.showNotification(notificationTitle, notificationOptions);
 });

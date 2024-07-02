@@ -27,24 +27,26 @@ export default defineNuxtConfig({
       },
     },
   },
-  pwa: {
-    meta: {
-      theme_color: '#ffffff', // Customize your PWA theme color
+  firebase: {
+    config: {
+      apiKey: "AIzaSyD-pOsvvcXBTuFcPo14vM7YbmpTV0DM8g0",
+      authDomain: "newgas-d9d01.firebaseapp.com",
+      projectId: "newgas-d9d01",
+      storageBucket: "newgas-d9d01.appspot.com",
+      messagingSenderId: "271282040066",
+      appId: "1:271282040066:web:1782fdbad081cb930c261b",
+      measurementId: "G-GGGSPQEBQP",
+      databaseURL: "https://newgas-d9d01-default-rtdb.asia-southeast1.firebasedatabase.app/"
     },
-    manifest: {
-      name: 'NewGas',
-      short_name: 'NewGas',
-      description: 'NewGas',
-      lang: 'en',
-    },
-    workbox: {
-      importScripts: [
-        '/service-worker.js' // Path to your service worker file in the static directory
-      ],
-      // Other workbox configuration options if needed
+    services: {
+      messaging: true,
     },
   },
   router: {
     base: '~/pages/todo', // Replace with your actual base path if applicable
+  },
+  server: {
+    host: '0.0.0.0', // default: localhost
+    port: 3000 // default: 3000
   }
 });

@@ -338,18 +338,18 @@ const scheduleNotification = (hours: string, minutes: string, message: string) =
   }
 };
 
-// Function to notify on desktop (not mobile)
-const notifyDesktop = (message: string) => {
-  if (window.Notification && Notification.permission === 'granted') {
-    new Notification('Course Notification', { body: message });
-  } else if (window.Notification && Notification.permission !== 'denied') {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        new Notification('Course Notification', { body: message });
-      }
-    });
-  }
-};
+// // Function to notify on desktop (not mobile)
+// const notifyDesktop = (message: string) => {
+//   if (window.Notification && Notification.permission === 'granted') {
+//     new Notification('Course Notification', { body: message });
+//   } else if (window.Notification && Notification.permission !== 'denied') {
+//     Notification.requestPermission().then(permission => {
+//       if (permission === 'granted') {
+//         new Notification('Course Notification', { body: message });
+//       }
+//     });
+//   }
+// };
 
 // Lifecycle hooks
 onMounted(() => {
@@ -379,6 +379,57 @@ watch(userId, () => {
     fetchCourses();
   }
 });
+
+// testing notification
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+
+const messaging = getMessaging();
+
+const requestNotificationPermission = async () => {
+  try {
+    const currentToken = await getToken(messaging, { vapidKey: 'BOib9jHiMlKoH303LWfAqnDflrl3Lrxm3Hxml1GOVUq1cJqw3GjbMm8Gm4EKs1EtXqoyQKo3E_MaEImfrV09U2s' });
+    if (currentToken) {
+      console.log('Notification permission granted and token retrieved:', currentToken);
+    } else {
+      console.log('No registration token available. Request permission to generate one.');
+    }
+  } catch (error) {
+    console.error('Error retrieving token:', error);
+  }
+};
+
+const sendNotification = (message: string) => {
+  if ('serviceWorker' in navigator && 'Notification' in window) {
+    navigator.serviceWorker.ready.then((registration) => {
+      registration.showNotification('Course Notification', {
+        body: message,
+        icon: '~/assets/flower.png',
+        vibrate: [200, 100, 200], 
+        tag: 'vibration-sample',
+      });
+    });
+  }
+};
+
+// Call this function on component mount
+onMounted(async () => {
+  await requestNotificationPermission();
+});
+
+// Update your notifyDesktop function to call sendNotification
+const notifyDesktop = (message: string) => {
+  if (window.Notification && Notification.permission === 'granted') {
+    new Notification('Course Notification', { body: message });
+  } else if (window.Notification && Notification.permission !== 'denied') {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        new Notification('Course Notification', { body: message });
+      }
+    });
+  }
+  sendNotification(message);
+};
+
 </script>
 
 
