@@ -12,6 +12,7 @@ export default defineNuxtConfig({
   ],
   plugins: [
     { src: '~/plugins/firebase', mode: 'client' },
+    { src: '~/public/firebase-messaging-sw.js', mode: 'client' },
     // Ensure your Firebase plugin is correctly referenced
   ],
   build: {
@@ -43,7 +44,7 @@ export default defineNuxtConfig({
     },
   },
   router: {
-    base: '~/pages/todo', // Replace with your actual base path if applicable
+    base: '/pages/todo', // Replace with your actual base path if applicable
   },
   server: {
     host: '0.0.0.0', // default: localhost

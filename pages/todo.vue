@@ -24,18 +24,18 @@
         <div class="form-group">
           <select v-model="courseTime" required>
             <option value="" disabled>Select Time Slot</option>
-            <option value="A">7:30-8:20</option>
-            <option value="B">8:30-9:20</option>
-            <option value="C">9:30-10:20</option>
-            <option value="D">10:30-11:20</option>
-            <option value="E">11:30-12:20</option>
-            <option value="F">12:30-13:20</option>
-            <option value="G">13:30-14:20</option>
-            <option value="H">14:30-15:20</option>
-            <option value="I">15:30-16:20</option>
-            <option value="J">16:30-17:20</option>
-            <option value="K">17:30-18:20</option>
-            <option value="L">18:30-19:20</option>
+            <option value="A">A : 7:30-8:20</option>
+            <option value="B">B : 8:30-9:20</option>
+            <option value="C">C : 9:30-10:20</option>
+            <option value="D">D : 10:30-11:20</option>
+            <option value="E">E : 11:30-12:20</option>
+            <option value="F">F : 12:30-13:20</option>
+            <option value="G">G : 13:30-14:20</option>
+            <option value="H">H : 14:30-15:20</option>
+            <option value="I">I : 15:30-16:20</option>
+            <option value="J">J : 16:30-17:20</option>
+            <option value="K">K : 17:30-18:20</option>
+            <option value="L">L : 18:30-19:20</option>
           </select>
         </div>
         <button type="submit">Add Course</button>
@@ -126,6 +126,9 @@ const greetingMessage = ref('');
 let initialNotificationFired = false;
 let intervalId: NodeJS.Timeout | null = null;
 
+// Set to keep track of notified courses
+const notifiedCourses = new Set<string>();
+
 // Function to fetch user data from Firebase
 const fetchUserData = async () => {
   if (userId.value) {
@@ -148,6 +151,8 @@ const fetchCourses = async () => {
         ...(course as Omit<Course, 'id'>),
         assignments: (course.assignments || []) as Assignment[],
       }));
+
+      // Ensure notifications are checked only once
       if (!initialNotificationFired) {
         checkCourseNotifications();
         initialNotificationFired = true;
@@ -287,18 +292,17 @@ const checkCourseNotifications = () => {
   const currentTime = `${currentDate.getHours()}:${currentDate.getMinutes()}`;
 
   // Notify passed courses only once
-  if (!initialNotificationFired) {
-    const passedCourses = courses.value.filter(course => {
-      const [startTime] = getTimeSlot(course.time).split('-');
-      return course.day === currentDay && compareTimes(currentTime, startTime) >= 0;
-    });
+  const passedCourses = courses.value.filter(course => {
+    const [startTime] = getTimeSlot(course.time).split('-');
+    return course.day === currentDay && compareTimes(currentTime, startTime) >= 0;
+  });
 
-    passedCourses.forEach(course => {
+  passedCourses.forEach(course => {
+    if (!notifiedCourses.has(course.id)) {
       notifyDesktop(`Your time for ${course.name} course is passed. Congratulations!`);
-    });
-
-    initialNotificationFired = true;
-  }
+      notifiedCourses.add(course.id);
+    }
+  });
 
   // Notify upcoming courses at their scheduled times
   const upcomingCourses = courses.value.filter(course => {
@@ -338,97 +342,46 @@ const scheduleNotification = (hours: string, minutes: string, message: string) =
   }
 };
 
-// // Function to notify on desktop (not mobile)
-// const notifyDesktop = (message: string) => {
-//   if (window.Notification && Notification.permission === 'granted') {
-//     new Notification('Course Notification', { body: message });
-//   } else if (window.Notification && Notification.permission !== 'denied') {
-//     Notification.requestPermission().then(permission => {
-//       if (permission === 'granted') {
-//         new Notification('Course Notification', { body: message });
-//       }
-//     });
-//   }
-// };
+// Function to send desktop notifications
+const notifyDesktop = (message: string) => {
+  if (Notification.permission === 'granted') {
+    new Notification(message);
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        new Notification(message);
+      }
+    });
+  }
+};
 
 // Lifecycle hooks
 onMounted(() => {
-  const unsubscribe = $firebase.auth.onAuthStateChanged(user => {
+  $firebase.auth.onAuthStateChanged(user => {
     if (user) {
       userId.value = user.uid;
-      fetchUserData();
-      fetchCourses();
     } else {
+      userId.value = null;
       router.push('/login');
     }
   });
-  return unsubscribe;
+
+  intervalId = setInterval(checkCourseNotifications, 60000);
 });
 
 onUnmounted(() => {
   if (intervalId) {
     clearInterval(intervalId);
-    intervalId = null;
   }
 });
 
-// Watch for changes in userId
-watch(userId, () => {
-  if (userId.value) {
+// Watch for changes in userId and fetch user data and courses accordingly
+watch(userId, (newUserId) => {
+  if (newUserId) {
     fetchUserData();
     fetchCourses();
   }
 });
-
-// testing notification
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-
-const messaging = getMessaging();
-
-const requestNotificationPermission = async () => {
-  try {
-    const currentToken = await getToken(messaging, { vapidKey: 'BOib9jHiMlKoH303LWfAqnDflrl3Lrxm3Hxml1GOVUq1cJqw3GjbMm8Gm4EKs1EtXqoyQKo3E_MaEImfrV09U2s' });
-    if (currentToken) {
-      console.log('Notification permission granted and token retrieved:', currentToken);
-    } else {
-      console.log('No registration token available. Request permission to generate one.');
-    }
-  } catch (error) {
-    console.error('Error retrieving token:', error);
-  }
-};
-
-const sendNotification = (message: string) => {
-  if ('serviceWorker' in navigator && 'Notification' in window) {
-    navigator.serviceWorker.ready.then((registration) => {
-      registration.showNotification('Course Notification', {
-        body: message,
-        vibrate: [200, 100, 200], 
-        tag: 'vibration-sample',
-      });
-    });
-  }
-};
-
-// Call this function on component mount
-onMounted(async () => {
-  await requestNotificationPermission();
-});
-
-// Update your notifyDesktop function to call sendNotification
-const notifyDesktop = (message: string) => {
-  if (window.Notification && Notification.permission === 'granted') {
-    new Notification('Course Notification', { body: message });
-  } else if (window.Notification && Notification.permission !== 'denied') {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        new Notification('Course Notification', { body: message });
-      }
-    });
-  }
-  sendNotification(message);
-};
-
 </script>
 
 
